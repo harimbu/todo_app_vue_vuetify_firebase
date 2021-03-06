@@ -9,20 +9,23 @@
           gradient="to top right, rgba(19,84,122,.9), rgba(128,208,199,.4)"
         >
           <v-card-title class="flex-column align-start" v-if="!user">
-            <v-icon color="white" size="60">mdi-check</v-icon>
+            <v-icon color="white" size="80">mdi-check</v-icon>
             <v-row class="pa-3 flex-column">
               <div class="caption">오늘 내가 할일은?</div>
             </v-row>
           </v-card-title>
 
-          <v-card-title class="flex-column align-start" v-else>
-            <v-avatar><img :src="user.photoURL" alt="John"></v-avatar>
-            <v-row class="pa-3 flex-column">
-              <div class="title">{{user.displayName}}</div>
-              <div class="caption">{{user.email}}</div>
+          <v-card-title v-else>
+            <v-row>
+              <v-col>
+                <v-avatar size="80" color="mb-3"><img :src="user.photoURL" alt="John"></v-avatar>
+                <div class="title">{{user.displayName}}</div>
+                <div class="caption">{{user.email}}</div>
+              </v-col>
+              <v-btn icon @click="signOut" class="mt-auto mb-2" color="white"><v-icon>mdi-logout</v-icon></v-btn>
             </v-row>
-            <v-btn icon @click="signOut"><v-icon>mdi-logout</v-icon></v-btn>
           </v-card-title>
+
         </v-img>
       </v-card>
       <v-divider></v-divider>
@@ -72,8 +75,8 @@ export default {
     return {
       drawer: null,
       items: [
-        { title: 'Todo', icon: 'mdi-playlist-check' },
-        { title: 'About', icon: 'mdi-information-outline' }
+        { title: 'Todo', icon: 'mdi-playlist-check', to: '/' },
+        { title: 'About', icon: 'mdi-information-outline', to: '/about' }
       ]
     }
   },
