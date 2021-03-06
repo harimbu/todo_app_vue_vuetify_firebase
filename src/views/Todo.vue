@@ -1,46 +1,64 @@
 <template>
   <div>
-    <v-text-field single-line label="할 일 추가..." append-icon="mdi-plus" @click:append="addTodo" v-model="newTodo" @keyup.enter="addTodo" class="px-1" />
-    <v-list flat subheader>
-      <v-list-item class="list_item" v-for="(todo, index) in todos" :key="todo.id">
-        <template v-slot:default="{ active }">
-          <v-list-item-action><v-checkbox :input-value="active"></v-checkbox></v-list-item-action>
-          <v-list-item-content><v-list-item-title>{{todo.title}}</v-list-item-title></v-list-item-content>
+    <v-text-field
+      v-model="newTodo"
+      class="px-5 mt-3"
+      lined
+      prepend-inner-icon="mdi-pencil"
+      append-icon="mdi-plus"
+      clearable
+      hide-details
+      @click:append="addTodo"
+      @keyup.enter="addTodo"
+      ></v-text-field>
+
+    <v-list flat>
+      <div v-for="(todo, index) in $store.state.todos" :key="todo.id">
+        <v-list-item @click="checkTodo(todo)" :class="{'blue lighten-5':todo.done}">
+          <v-list-item-action>
+            <v-checkbox :input-value="todo.done"></v-checkbox>
+          </v-list-item-action>
+
+          <v-list-item-content>
+            <v-list-item-title :class="{'text-decoration-line-through':todo.done}">{{todo.title}}</v-list-item-title>
+          </v-list-item-content>
+
+          <v-list-item-action>
             <v-menu offset-y>
-              <template v-slot:activator="{ on }">
-                <v-btn icon v-on="on"><v-icon>mdi-dots-vertical</v-icon></v-btn>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn icon>
+                  <v-icon color="grey lighten-1" v-on="on" v-bind="attrs">mdi-dots-vertical</v-icon>
+                </v-btn>
               </template>
               <v-list>
-                <v-list-item link class="px-3" @click="editTodo(index)">수정하기</v-list-item>
-                <v-list-item link class="px-3" @click="removeTodo(index)">삭제하기</v-list-item>
+                <v-list-item @click="editTodo(index)"><v-list-item-title>수정하기</v-list-item-title></v-list-item>
+                <v-list-item @click="removeTodo(todo)"><v-list-item-title>삭제하기</v-list-item-title></v-list-item>
               </v-list>
-
             </v-menu>
-        </template>
-      </v-list-item>
-    </v-list>
-    <v-col class="d-flex px-0">
-      <v-btn depressed dark small color="primary">전체</v-btn>
-      <v-btn depressed dark small color="indigo">완료</v-btn>
-      <v-btn depressed dark small color="teal">남은일</v-btn>
-      <v-btn small color="dark-grey" dark depressed class="endBtn">완료한 일 삭제</v-btn>
-    </v-col>
 
-    <v-dialog v-model="dialog" width="500">
+          </v-list-item-action>
+        </v-list-item>
+        <v-divider />
+      </div>
+    </v-list>
+
+    <div class="pa-3 text-right" v-if="$store.getters.showDelBtn">
+      <v-btn depressed color="primary" @click="removeDoneTodo">완료한 일 삭제</v-btn>
+    </div>
+
+    <v-dialog v-model="dialog">
       <v-card>
-        <v-card-title>
-          <span>수정하기</span>
-          <v-spacer />
-          <v-btn icon @click="doneEdit"><v-icon>mdi-content-save</v-icon></v-btn>
-          <v-btn icon @click="dialog=false"><v-icon>mdi-close </v-icon></v-btn>
-        </v-card-title>
-        <v-card-text>
-          <v-text-field outlined hide-details v-model="formTitle" />
+        <v-card-title class="grey lighten-3">수정하기</v-card-title>
+        <v-card-text class="pb-0">
+          <v-text-field hide-details v-model="formTitle" />
         </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="error" text @click="dialog = false">취소</v-btn>
+          <v-btn color="primary" text @click="editDone">확인</v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <v-snackbar v-model="snackbar" :timeout="timeout">{{ text }}</v-snackbar>
   </div>
 </template>
 
@@ -48,56 +66,70 @@
 export default {
   data () {
     return {
-      todos: [
-        { id: 1, title: 'wake up', completed: false, editing: false },
-        { id: 2, title: 'make Coffee', completed: false, editing: false }
-      ],
-      newTodo: '',
-      idCount: 3,
-      snackbar: false,
-      timeout: 2000,
-      text: '할 일이 삭제되었습니다.',
       dialog: false,
-      formTitle: '',
-      selectedIndex: ''
+      newTodo: '',
+      formTitle: ''
     }
   },
+  created () {
+    this.getTodos()
+  },
   methods: {
-    addTodo () {
-      if (this.newTodo === '') return
-      this.todos.push({
-        id: this.idCount,
-        title: this.newTodo,
-        completed: false,
-        editing: false
+    getTodos () {
+      this.$fire.firestore().collection('todos').orderBy('createAt', 'desc').onSnapshot(sn => {
+        this.$store.state.todos = sn.docs.map(doc => {
+          return {
+            id: doc.id,
+            createAt: doc.data().createAt,
+            title: doc.data().title,
+            done: doc.data().done,
+            editing: doc.data().editing
+          }
+        })
       })
-      this.newTodo = ''
-      this.idCount++
     },
-    removeTodo (index) {
-      this.todos.splice(index, 1)
-      setTimeout(() => {
-        this.snackbar = true
-      }, 500)
+    checkTodo (todo) {
+      this.$fire.firestore().collection('todos').doc(todo.id).update({
+        done: !todo.done
+      })
+    },
+    addTodo () {
+      const todo = {
+        createAt: Date.now(),
+        title: this.newTodo,
+        done: false,
+        editing: false
+      }
+      if (this.newTodo === '') return
+      this.$fire.firestore().collection('todos').add(todo)
+      this.newTodo = ''
+    },
+    removeTodo (todo) {
+      this.$fire.firestore().collection('todos').doc(todo.id).delete()
     },
     editTodo (index) {
       this.selectedIndex = index
       this.dialog = true
-      this.formTitle = this.todos[index].title
+      this.formTitle = this.$store.state.todos[index].title
     },
-    doneEdit () {
-      this.todos[this.selectedIndex].title = this.formTitle
+    editDone () {
+      const id = this.$store.state.todos[this.selectedIndex].id
+      this.$fire.firestore().collection('todos').doc(id).update({
+        title: this.formTitle
+      })
       this.dialog = false
+    },
+    removeDoneTodo () {
+      this.$fire.firestore().collection('todos').where('done', '==', true).get().then(sn => {
+        sn.forEach(doc => {
+          this.$fire.firestore().collection('todos').doc(doc.id).delete()
+        })
+      })
     }
   }
 }
 </script>
 
-<style lang="scss" scoped>
-.v-list-item {
-  padding: 0;
-}
-.list_item {
-  border-bottom: 1px solid #ddd;
-}
+<style>
+
 </style>
