@@ -22,4 +22,4 @@ pnpm-debug.log*
 *.sln
 *.sw?
 
-/plugins/firebase.js
+/src/plugins/firebase.js
