@@ -3,9 +3,15 @@ import App from './App.vue'
 import router from './router'
 import store from './store'
 import vuetify from './plugins/vuetify'
-import './plugins/firebase'
+import { auth } from './firebase'
 
 Vue.config.productionTip = false
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    store.commit('setUser', user)
+  }
+})
 
 new Vue({
   router,

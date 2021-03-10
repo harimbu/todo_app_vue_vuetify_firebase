@@ -49,7 +49,7 @@
       <v-app-bar-nav-icon @click="drawer=!drawer" />
       <v-app-bar-title class="pl-0">
         오늘 할 일
-        <v-chip class="mx-3" small color="red">{{remainCount}} </v-chip>
+        <v-chip class="mx-3" small color="red">{{remainCount}}</v-chip>
       </v-app-bar-title>
       <v-spacer />
       <Sign />
@@ -87,6 +87,7 @@ export default {
   methods: {
     signOut () {
       this.$fire.auth().signOut()
+      this.$store.commit('setUser', null)
     }
   }
 }

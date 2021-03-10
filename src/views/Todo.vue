@@ -13,7 +13,7 @@
       ></v-text-field>
 
     <v-list flat>
-      <div v-for="(todo, index) in $store.state.todos" :key="todo.id">
+      <div v-for="todo in filterTodo" :key="todo.createAt">
         <v-list-item @click="checkTodo(todo)" :class="{'blue lighten-5':todo.done}">
           <v-list-item-action>
             <v-checkbox :input-value="todo.done"></v-checkbox>
@@ -31,7 +31,7 @@
                 </v-btn>
               </template>
               <v-list>
-                <v-list-item @click="editTodo(index)"><v-list-item-title>수정하기</v-list-item-title></v-list-item>
+                <v-list-item @click="editTodo(todo)"><v-list-item-title>수정하기</v-list-item-title></v-list-item>
                 <v-list-item @click="removeTodo(todo)"><v-list-item-title>삭제하기</v-list-item-title></v-list-item>
               </v-list>
             </v-menu>
@@ -42,7 +42,7 @@
       </div>
     </v-list>
 
-    <div class="pa-3 text-right" v-if="$store.getters.showDelBtn">
+    <div class="pa-3 text-right" v-if="showDelBtn">
       <v-btn depressed color="primary" @click="removeDoneTodo">완료한 일 삭제</v-btn>
     </div>
 
@@ -63,73 +63,72 @@
 </template>
 
 <script>
+import { db, auth } from '../firebase'
+import { mapGetters } from 'vuex'
 export default {
   data () {
     return {
       dialog: false,
       newTodo: '',
-      formTitle: ''
+      formTitle: '',
+      docId: null
     }
+  },
+  computed: {
+    ...mapGetters(['filterTodo', 'showDelBtn'])
   },
   created () {
     this.getTodos()
   },
   methods: {
     getTodos () {
-      this.$fire.firestore().collection('todos').orderBy('createAt', 'desc').onSnapshot(sn => {
-        this.$store.state.todos = sn.docs.map(doc => {
-          return {
-            id: doc.id,
-            createAt: doc.data().createAt,
-            title: doc.data().title,
-            done: doc.data().done,
-            editing: doc.data().editing
-          }
-        })
-      })
+      this.$store.dispatch('getTodos')
     },
     checkTodo (todo) {
-      this.$fire.firestore().collection('todos').doc(todo.id).update({
+      db.collection('todos').doc(todo.id).update({
         done: !todo.done
       })
     },
     addTodo () {
       const todo = {
+        userId: auth.currentUser.uid,
         createAt: Date.now(),
         title: this.newTodo,
         done: false,
         editing: false
       }
       if (this.newTodo === '') return
-      this.$fire.firestore().collection('todos').add(todo)
+      db.collection('todos').add(todo)
       this.newTodo = ''
     },
     removeTodo (todo) {
-      this.$fire.firestore().collection('todos').doc(todo.id).delete()
+      db.collection('todos').doc(todo.id).delete()
     },
-    editTodo (index) {
-      this.selectedIndex = index
+    editTodo (todo) {
+      this.docId = todo.id
       this.dialog = true
-      this.formTitle = this.$store.state.todos[index].title
+      this.formTitle = todo.title
     },
     editDone () {
-      const id = this.$store.state.todos[this.selectedIndex].id
-      this.$fire.firestore().collection('todos').doc(id).update({
+      console.log(this.selectedId)
+      db.collection('todos').doc(this.docId).update({
         title: this.formTitle
       })
       this.dialog = false
     },
-    removeDoneTodo () {
-      this.$fire.firestore().collection('todos').where('done', '==', true).get().then(sn => {
-        sn.forEach(doc => {
-          this.$fire.firestore().collection('todos').doc(doc.id).delete()
-        })
+    async removeDoneTodo () {
+      const todoQuery = await db.collection('todos').where('userId', '==', auth.currentUser.uid).where('done', '==', true).get()
+      todoQuery.forEach(doc => {
+        doc.ref.delete()
       })
     }
   }
 }
 </script>
 
-<style>
-
+<style lang="scss" scoped>
+.v-list-item__action {
+    align-self: center;
+    margin: 0;
+}
 </style>
