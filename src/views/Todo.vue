@@ -82,7 +82,18 @@ export default {
   },
   methods: {
     getTodos () {
-      this.$store.dispatch('getTodos')
+      db.collection('todos').orderBy('createAt', 'desc').onSnapshot(sn => {
+        this.$store.state.todos = sn.docs.map(doc => {
+          return {
+            id: doc.id,
+            title: doc.data().title,
+            createAt: doc.data().createAt,
+            editing: doc.data().editing,
+            done: doc.data().done,
+            userId: doc.data().userId
+          }
+        })
+      })
     },
     checkTodo (todo) {
       db.collection('todos').doc(todo.id).update({
